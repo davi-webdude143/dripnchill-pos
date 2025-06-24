@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DripNChill POS</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: url('https://ts4.mm.bing.net/th?id=OIP.9UUDktjcrU37B98IXIZT7QHaE7&pid=15.1') center/cover no-repeat fixed;
+    }
+    .container {
+      max-width: 960px;
+      margin: 40px auto;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 0 25px rgba(0,0,0,0.15);
+    }
+    .logo {
+      display: block;
+      margin: 0 auto 20px;
+      height: 90px;
+    }
+    h2 {
+      text-align: center;
+      color: #013c58;
+    }
+    label, input, select, button {
+      margin: 5px;
+      padding: 7px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #aaa;
+      padding: 10px;
+      text-align: center;
+    }
+    .summary {
+      margin-top: 20px;
+      font-size: 15px;
+    }
+    .alert {
+      color: crimson;
+      font-weight: bold;
+      margin-top: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="https://bing.com/th/id/BCO.a216acd5-5e24-4254-9c65-c71c98e654a5.png" alt="DripNChill Logo" class="logo" />
+    <h2>🧊 DripNChill POS – Sales & Profit Tracker</h2>
+
+    <label>Seller:</label>
+    <input id="seller" />
+    <label>Flavor:</label>
+    <select id="flavor">
+      <option>Mango Magic</option>
+      <option>Berry Blast</option>
+      <option>Lemon Freeze</option>
+    </select>
+    <label>Qty:</label>
+    <input type="number" id="qty" value="1" min="1" />
+    <label>Price:</label>
+    <input type="number" id="price" value="15" min="1" />
+    <label>Payment:</label>
+    <select id="payment">
+      <option>M-Pesa</option>
+      <option>Cash</option>
+    </select>
+    <button onclick="addSale()">Add Sale</button>
+    <button onclick="window.print()">🖨️ Print</button>
+    <button onclick="clearAll()" style="background:#ffcaca;">Clear All</button>
+
+    <table id="salesTable">
+      <tr>
+        <th>#</th><th>Date</th><th>Seller</th><th>Flavor</th><th>Qty</th>
+        <th>Total</th><th>Payment</th><th>Commission</th><th>🗑</th>
+      </tr>
+    </table>
+
+    <div class="summary" id="summary"></div>
+    <div class="alert" id="alert"></div>
+  </div>
+
+  <script>
+    let sales = [];
+    let totalRevenue = 0;
+    let earnings = {};
+    const ALLOC = { commission: 2, poultry: 1, upkeep: 2, future: 1, grandma: 1, friday: 0.5 };
+
+    function addSale() {
+      const seller = document.getElementById("seller").value.trim();
+      const flavor = document.getElementById("flavor").value;
+      const qty = parseInt(document.getElementById("qty").value);
+      const price = parseInt(document.getElementById("price").value);
+      const payment = document.getElementById("payment").value;
+      const total = qty * price;
+      const commission = qty * ALLOC.commission;
+      const date = new Date().toLocaleDateString();
+
+      if (!seller || isNaN(qty) || isNaN(price)) {
+        alert("Please enter all fields correctly.");
+        return;
+      }
+
+      sales.push({ date, seller, flavor, qty, total, payment, commission });
+      totalRevenue += total;
+      earnings[seller] = (earnings[seller] || 0) + commission;
+
+      display();
+    }
+
+    function deleteRow(i) {
+      const s = sales.splice(i, 1)[0];
+      totalRevenue -= s.total;
+      earnings[s.seller] -= s.commission;
+      display();
+    }
+
+    function clearAll() {
+      if (confirm("Clear everything?")) {
+        sales = [];
+        earnings = {};
+        totalRevenue = 0;
+        display();
+      }
+    }
+
+    function display() {
+      const table = document.getElementById("salesTable");
+      table.innerHTML = `<tr><th>#</th><th>Date</th><th>Seller</th><th>Flavor</th><th>Qty</th><th>Total</th><th>Payment</th><th>Commission</th><th>🗑</th></tr>`;
+      let cash = 0, mpesa = 0;
+
+      sales.forEach((s, i) => {
+        table.innerHTML += `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${s.date}</td>
+            <td>${s.seller}</td>
+            <td>${s.flavor}</td>
+            <td>${s.qty}</td>
+            <td>${s.total}</td>
+            <td>${s.payment}</td>
+            <td>${s.commission}</td>
+            <td><button onclick="deleteRow(${i})">❌</button></td>
+          </tr>
+        `;
+        s.payment === "M-Pesa" ? mpesa += s.total : cash += s.total;
+      });
+
+      const sum = k => sales.reduce((a, s) => a + s.qty * ALLOC[k], 0);
+      const commission = Object.values(earnings).reduce((a,b)=>a+b,0);
+      const profit = totalRevenue - (commission + sum("poultry") + sum("upkeep") + sum("future") + sum("grandma") + sum("friday"));
+
+      document.getElementById("summary").innerHTML = `
+        <p><strong>M-Pesa Total:</strong> KES ${mpesa}</p>
+        <p><strong>Cash Total:</strong> KES ${cash}</p>
+        <p><strong>Total Revenue:</strong> KES ${totalRevenue}</p>
+        <p>
+          Poultry: ${sum("poultry")} | Upkeep: ${sum("upkeep")} |
+          Future: ${sum("future")} | Grandma: ${sum("grandma")} |
+          Friday: ${sum("friday")} | Salaries: ${commission}
+        </p>
+        <p><strong>Estimated Profit:</strong> KES ${profit}</p>
+      `;
+
+      document.getElementById("alert").innerText = profit < 0
+        ? "⚠️ Alert: You're running at a loss!"
+        : "";
+    }
+
+    window.onload = display;
+  </script>
+</body>
+</html>
